@@ -98,7 +98,7 @@ static ssize_t w1_ds28ea00_usb_power(struct device *device,
 	struct w1_slave *sl = dev_to_w1_slave(device);
 	struct w1_master *dev = sl->master;
 	u8 rbuf[8];
-	u8 wbuf[4] = { 0xA5, 0xFF, 0xFF, 0xAA };
+	u8 wbuf[4] = { 0xA5, 0xFF, 0xFF };
 
 	if (count > 0 && in_buf[0] == '0') {
 		wbuf[1] = 0xFE;
@@ -106,12 +106,14 @@ static ssize_t w1_ds28ea00_usb_power(struct device *device,
 
 	printk(KERN_INFO "ds28ea00: sending : %X.\n", wbuf[1]);
 
-	wbuf[3] = ~wbuf[2];
+	wbuf[2] = ~wbuf[1];
 
 	mutex_lock(&dev->mutex);
 	if (!w1_reset_select_slave(sl)) {
-		w1_write_block(dev, wbuf, 4);
-		
+		w1_write_block(dev, wbuf, 3);
+		w1_read_block(dev, rbuf, 1);
+
+		printk(KERN_INFO "ds28ea00: reading %X.\n", rbuf[0]);
 	} else {
 		return -1;
 	}
@@ -119,11 +121,35 @@ static ssize_t w1_ds28ea00_usb_power(struct device *device,
 	return count;
 }
 
+static ssize_t w1_ds28ea00_pio_status(struct device *device,
+	struct device_attribute *attr, char *out_buf)
+{
+	struct w1_slave *sl = dev_to_w1_slave(device);
+	struct w1_master *dev = sl->master;
+	u8 rbuf[8];
+	u8 wbuf[1] = { 0xF5 };
+	int ret;
+
+	mutex_lock(&dev->mutex);
+	if (!w1_reset_select_slave(sl)) {
+		w1_write_block(dev, wbuf, 1);
+		w1_read_block(dev, rbuf, 1);
+		w1_reset_select_slave(sl);
+
+	} else {
+		return -1;
+	}
+	mutex_unlock(&dev->mutex);
+
+	ret = snprintf(out_buf, 30, "status=%X \n", rbuf[0]);
+
+	return ret;
+}
 
 static struct device_attribute w1_ds28ea00_attr_scratchpad =
 	__ATTR(scratchpad, S_IRUGO, w1_ds28ea00_scratchpad, NULL);
 static struct device_attribute w1_ds28ea00_attr_usb_power =
-	__ATTR(usb_power, S_IWUGO, NULL, w1_ds28ea00_usb_power );
+	__ATTR(usb_power, S_IWUGO | S_IRUGO, w1_ds28ea00_pio_status, w1_ds28ea00_usb_power );
 static struct device_attribute w1_ds28ea00_attr_therm =
 	__ATTR(therm, S_IRUGO, w1_ds28ea00_therm, NULL);
 
