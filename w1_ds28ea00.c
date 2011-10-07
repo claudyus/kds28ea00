@@ -63,20 +63,27 @@ static ssize_t w1_ds28ea00_therm(struct device *device,
 	struct w1_master *dev = sl->master;
 	u8 rbuf[8];
 	u8 wbuf[2] = { 0x44, 0xBE };
-
+	char p_int, p_dec;
 	int ret;
 
 	mutex_lock(&dev->mutex);
 	if (!w1_reset_select_slave(sl)) {
 
 		w1_write_block(dev, &wbuf[0], 1);	//conversione
-		msleep(750);						// wait 750ms
+		msleep(1000);						// wait
+
+		w1_reset_select_slave(sl);
 		w1_write_block(dev, &wbuf[1], 1);	//read scratchpad
 
 		w1_read_block(dev, rbuf, 8);
 
-		ret = snprintf(out_buf, 30, "t=%X %X\n",
-			rbuf[0], rbuf[1]);
+		p_int = ((rbuf[1] & 0x7) < 5 | ((rbuf[0] > 4) & 0xF));
+		p_dec = rbuf[0] & 0xF;
+
+	printk(KERN_INFO "ds28ea00: var1= : %X, var2= %X.\n", (rbuf[1] & 0x7) < 5, ((rbuf[0] > 4) & 0xF));
+
+		ret = snprintf(out_buf, 30, "t=%X %X  %d.%d\n",
+			rbuf[0], rbuf[1], (int) p_int, p_dec);
 
 	} else {
 		ret = 0;
@@ -85,32 +92,38 @@ static ssize_t w1_ds28ea00_therm(struct device *device,
 	return ret;
 }
 
-/*
-static ssize_t w1_ds28ea00_pio(struct device *device,
+static ssize_t w1_ds28ea00_usb_power(struct device *device,
 	struct device_attribute *attr, char *in_buf, size_t count)
 {
 	struct w1_slave *sl = dev_to_w1_slave(device);
 	struct w1_master *dev = sl->master;
-	u8 rbuf[//FIXME];
+	u8 rbuf[8];
+	u8 wbuf[4] = { 0xA5, 0xFF, 0xFF, 0xAA };
+
+	if (count > 0 && in_buf[0] == '0') {
+		wbuf[1] = 0xFE;
+	}
+
+	printk(KERN_INFO "ds28ea00: sending : %X.\n", wbuf[1]);
+
+	wbuf[3] = ~wbuf[2];
 
 	mutex_lock(&dev->mutex);
 	if (!w1_reset_select_slave(sl)) {
-		w1_write_block(dev, wrbuf, 3);
-		read_byte_count = 0;
+		w1_write_block(dev, wbuf, 4);
+		
 	} else {
-		c -= snprintf(out_buf + PAGE_SIZE - c, c, "Connection error");
+		return -1;
 	}
 	mutex_unlock(&dev->mutex);
-	return PAGE_SIZE - c;
+	return count;
 }
-*/
+
 
 static struct device_attribute w1_ds28ea00_attr_scratchpad =
 	__ATTR(scratchpad, S_IRUGO, w1_ds28ea00_scratchpad, NULL);
-/*
-static struct device_attribute w1_ds28ea00_attr_pio =
-	__ATTR(pio, S_IRUGO, NULL, w1_ds28ea00_pio);
-*/
+static struct device_attribute w1_ds28ea00_attr_usb_power =
+	__ATTR(usb_power, S_IWUGO, NULL, w1_ds28ea00_usb_power );
 static struct device_attribute w1_ds28ea00_attr_therm =
 	__ATTR(therm, S_IRUGO, w1_ds28ea00_therm, NULL);
 
@@ -118,7 +131,7 @@ static struct device_attribute w1_ds28ea00_attr_therm =
 static int w1_ds28ea00_add_slave(struct w1_slave *sl)
 {
 	device_create_file(&sl->dev, &w1_ds28ea00_attr_scratchpad);
-//	device_create_file(&sl->dev, &w1_ds28ea00_attr_pio);
+	device_create_file(&sl->dev, &w1_ds28ea00_attr_usb_power);
 	device_create_file(&sl->dev, &w1_ds28ea00_attr_therm);
 	return 0;
 }
