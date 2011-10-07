@@ -77,10 +77,10 @@ static ssize_t w1_ds28ea00_therm(struct device *device,
 
 		w1_read_block(dev, rbuf, 8);
 
-		p_int = ((rbuf[1] & 0x7) < 5 | ((rbuf[0] > 4) & 0xF));
+		p_int = ((rbuf[1] & 0x7) << 4 | ((rbuf[0] >> 4) & 0xF));
 		p_dec = rbuf[0] & 0xF;
 
-	printk(KERN_INFO "ds28ea00: var1= : %X, var2= %X.\n", (rbuf[1] & 0x7) < 5, ((rbuf[0] > 4) & 0xF));
+	printk(KERN_INFO "ds28ea00: var1= : %X, var2= %X.\n", ((rbuf[1] & 0x7) << 4), ((rbuf[0] >> 4) & 0xF));
 
 		ret = snprintf(out_buf, 30, "t=%X %X  %d.%d\n",
 			rbuf[0], rbuf[1], (int) p_int, p_dec);
