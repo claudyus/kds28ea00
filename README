@@ -1,0 +1,22 @@
+This is bleending edge driver for ds28ea00 available on FoxBoard G20 v2.
+
+
+VERSION HISTORY
+---------------
+
+
+CROSS-COMPILE
+-------------
+To cross-compile this driver you need a gcc-arm and configured kernel. Then
+simple type:
+
+make KERNELDIR=<path_to_kernel> CROSSCOMPILE=<path to ggc cross compiler>
+
+This will generate w1_ds28ea00.ko that can be insmoded on your kernel.
+
+
+DEVELOP
+-------
+Feel free to drop me a mail for bugs, suggestion, patch and general
+improvement <c.mignanti@gmail.com>
+
