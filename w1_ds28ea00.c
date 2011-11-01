@@ -162,9 +162,16 @@ static int w1_ds28ea00_add_slave(struct w1_slave *sl)
 	return 0;
 }
 
+static void w1_ds28ea00_remove_slave(struct w1_slave *sl)
+{
+	sysfs_remove_bin_file(&sl->dev, &w1_ds28ea00_attr_scratchpad);
+	sysfs_remove_bin_file(&sl->dev, &w1_ds28ea00_attr_usb_power);
+	sysfs_remove_bin_file(&sl->dev, &w1_ds28ea00_attr_therm);
+}
+
 static struct w1_family_ops w1_ds28ea00_fops = {
 	.add_slave	= w1_ds28ea00_add_slave,
-//	.remove_slave	= w1_ds28ea00_remove_slave,
+	.remove_slave	= w1_ds28ea00_remove_slave,
 };
 
 static struct w1_family w1_ds28ea00_family = {
@@ -178,4 +185,10 @@ static int __init w1_ds28ea00_init(void)
 	return w1_register_family(&w1_ds28ea00_family);
 }
 
+static void __exit w1_ds28ea00_exit(void)
+{
+	w1_unregister_family(&w1_ds28ea00_family);
+}
+
 module_init(w1_ds28ea00_init);
+module_exit(w1_ds28ea00_exit);
