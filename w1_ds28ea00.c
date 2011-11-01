@@ -69,18 +69,15 @@ static ssize_t w1_ds28ea00_therm(struct device *device,
 	mutex_lock(&dev->mutex);
 	if (!w1_reset_select_slave(sl)) {
 
-		w1_write_block(dev, &wbuf[0], 1);	//conversione
-		msleep(1000);						// wait
+		w1_write_block(dev, &wbuf[0], 1);	/* start conversion */
+		msleep(700);
 
 		w1_reset_select_slave(sl);
-		w1_write_block(dev, &wbuf[1], 1);	//read scratchpad
-
-		w1_read_block(dev, rbuf, 8);
+		w1_write_block(dev, &wbuf[1], 1);	/* read scratchpad */
+		w1_read_block(dev, rbuf, 2);
 
 		p_int = ((rbuf[1] & 0x7) << 4 | ((rbuf[0] >> 4) & 0xF));
 		p_dec = rbuf[0] & 0xF;
-
-	printk(KERN_INFO "ds28ea00: var1= : %X, var2= %X.\n", ((rbuf[1] & 0x7) << 4), ((rbuf[0] >> 4) & 0xF));
 
 		ret = snprintf(out_buf, 30, "t=%X %X  %d.%d\n",
 			rbuf[0], rbuf[1], (int) p_int, p_dec);
@@ -92,7 +89,7 @@ static ssize_t w1_ds28ea00_therm(struct device *device,
 	return ret;
 }
 
-static ssize_t w1_ds28ea00_usb_power(struct device *device,
+static ssize_t w1_ds28ea00_pio_write(struct device *device,
 	struct device_attribute *attr, char *in_buf, size_t count)
 {
 	struct w1_slave *sl = dev_to_w1_slave(device);
@@ -100,20 +97,15 @@ static ssize_t w1_ds28ea00_usb_power(struct device *device,
 	u8 rbuf[8];
 	u8 wbuf[4] = { 0xA5, 0xFF, 0xFF };
 
-	if (count > 0 && in_buf[0] == '0') {
-		wbuf[1] = 0xFE;
+	if (count > 0) {
+		wbuf[1] = 0xFF | in_buf[0] ;
 	}
-
-	printk(KERN_INFO "ds28ea00: sending : %X.\n", wbuf[1]);
-
 	wbuf[2] = ~wbuf[1];
 
 	mutex_lock(&dev->mutex);
 	if (!w1_reset_select_slave(sl)) {
 		w1_write_block(dev, wbuf, 3);
 		w1_read_block(dev, rbuf, 1);
-
-		printk(KERN_INFO "ds28ea00: reading %X.\n", rbuf[0]);
 	} else {
 		return -1;
 	}
@@ -121,7 +113,7 @@ static ssize_t w1_ds28ea00_usb_power(struct device *device,
 	return count;
 }
 
-static ssize_t w1_ds28ea00_pio_status(struct device *device,
+static ssize_t w1_ds28ea00_pio_read(struct device *device,
 	struct device_attribute *attr, char *out_buf)
 {
 	struct w1_slave *sl = dev_to_w1_slave(device);
@@ -149,7 +141,7 @@ static ssize_t w1_ds28ea00_pio_status(struct device *device,
 static struct device_attribute w1_ds28ea00_attr_scratchpad =
 	__ATTR(scratchpad, S_IRUGO, w1_ds28ea00_scratchpad, NULL);
 static struct device_attribute w1_ds28ea00_attr_usb_power =
-	__ATTR(usb_power, S_IWUGO | S_IRUGO, w1_ds28ea00_pio_status, w1_ds28ea00_usb_power );
+	__ATTR(usb_power, S_IWUGO | S_IRUGO, w1_ds28ea00_pio_read, w1_ds28ea00_pio_write );
 static struct device_attribute w1_ds28ea00_attr_therm =
 	__ATTR(therm, S_IRUGO, w1_ds28ea00_therm, NULL);
 
