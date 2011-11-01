@@ -1,7 +1,7 @@
 /*
  *	w1_ds28ea00.c - w1 family (DS28EA00) driver
  *
- * Copyright (c) 2011 Mignanti Claudio <c.mignanti@gmail.com>
+ * Copyright (c) 2011 - Claudio Mignanti <c.mignanti@gmail.com>
  *
  * This source code is licensed under the GNU General Public License,
  * Version 2. See the file COPYING for more details.
