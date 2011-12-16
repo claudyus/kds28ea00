@@ -24,7 +24,7 @@
 #define W1_DS28EA00		0x42
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("w1 family 28 driver for DS28EA00 chip");
+MODULE_DESCRIPTION("w1 family 28 driver for DS28EA00 chip v2");
 
 
 /* Here we can read serial number from the device and write pio status to it
@@ -92,16 +92,20 @@ static ssize_t w1_ds28ea00_therm(struct device *device,
 	return ret;
 }
 
-static ssize_t w1_ds28ea00_usb_power(struct device *device,
+static ssize_t w1_ds28ea00_pio_write(struct device *device,
 	struct device_attribute *attr, char *in_buf, size_t count)
 {
 	struct w1_slave *sl = dev_to_w1_slave(device);
 	struct w1_master *dev = sl->master;
+
+	if (count < 1)
+		return -1;
+
 	u8 rbuf[8];
 	u8 wbuf[4] = { 0xA5, 0xFF, 0xFF };
 
-	if (count > 0 && in_buf[0] == '0') {
-		wbuf[1] = 0xFE;
+	if (count > 0) {
+		wbuf[1] = wbuf[1] ^ in_buf[0];
 	}
 
 	printk(KERN_INFO "ds28ea00: sending : %X.\n", wbuf[1]);
@@ -121,7 +125,7 @@ static ssize_t w1_ds28ea00_usb_power(struct device *device,
 	return count;
 }
 
-static ssize_t w1_ds28ea00_pio_status(struct device *device,
+static ssize_t w1_ds28ea00_pio_read(struct device *device,
 	struct device_attribute *attr, char *out_buf)
 {
 	struct w1_slave *sl = dev_to_w1_slave(device);
@@ -149,7 +153,7 @@ static ssize_t w1_ds28ea00_pio_status(struct device *device,
 static struct device_attribute w1_ds28ea00_attr_scratchpad =
 	__ATTR(scratchpad, S_IRUGO, w1_ds28ea00_scratchpad, NULL);
 static struct device_attribute w1_ds28ea00_attr_usb_power =
-	__ATTR(usb_power, S_IWUGO | S_IRUGO, w1_ds28ea00_pio_status, w1_ds28ea00_usb_power );
+	__ATTR(pio_value, S_IWUGO | S_IRUGO, w1_ds28ea00_pio_read, w1_ds28ea00_pio_write );
 static struct device_attribute w1_ds28ea00_attr_therm =
 	__ATTR(therm, S_IRUGO, w1_ds28ea00_therm, NULL);
 
