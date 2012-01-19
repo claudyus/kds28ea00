@@ -21,10 +21,8 @@
 #include "w1_family.h"
 
 
-#define W1_DS28EA00		0x42
-
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("w1 family 28 driver for DS28EA00 chip v2");
+MODULE_DESCRIPTION("w1 family 42 driver for DS28EA00 chip v2");
 
 
 /* Here we can read serial number from the device and write pio status to it
@@ -173,11 +171,11 @@ static int w1_ds28ea00_add_slave(struct w1_slave *sl)
 
 static struct w1_family_ops w1_ds28ea00_fops = {
 	.add_slave	= w1_ds28ea00_add_slave,
-//	.remove_slave	= w1_ds28ea00_remove_slave,
+	//.remove_slave	= w1_ds28ea00_remove_slave,
 };
 
 static struct w1_family w1_ds28ea00_family = {
-	.fid = W1_DS28EA00,
+	.fid = W1_FAMILY_DS28EA00,
 	.fops = &w1_ds28ea00_fops,
 };
 
