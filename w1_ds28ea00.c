@@ -35,19 +35,22 @@ static ssize_t w1_ds28ea00_scratchpad(struct device *device,
 {
 	struct w1_slave *sl = dev_to_w1_slave(device);
 	struct w1_master *dev = sl->master;
-	u8 rbuf[8];
+	u8 rbuf[9], crc, verdict;
 	u8 wbuf[1] = { 0xBE };
-
-	int ret;
+	ssize_t ret = PAGE_SIZE;
 
 	mutex_lock(&dev->mutex);
 	if (!w1_reset_select_slave(sl)) {
 		w1_write_block(dev, wbuf, 1);
 
-		w1_read_block(dev, rbuf, 8);
+		w1_read_block(dev, rbuf, 9);
 
-		ret = snprintf(out_buf, 60, "scratchpad=%X %X %X %X %X %X %X %X\n",
-			rbuf[0], rbuf[1], rbuf[2], rbuf[3], rbuf[4], rbuf[5], rbuf[6], rbuf[7]);
+		crc = w1_calc_crc8(rbuf, 8);
+		if (rbuf[8] == crc)
+			verdict = 1;
+
+		ret -= snprintf(out_buf + PAGE_SIZE - ret, ret, "%02x %02x %02x %02x %02x %02x %02x %02x %02x : crc=%02x %s\n",
+			rbuf[0], rbuf[1], rbuf[2], rbuf[3], rbuf[4], rbuf[5], rbuf[6], rbuf[7], rbuf[8], crc, (verdict) ? "YES" : "NO");
 
 	} else {
 		ret = 0;
@@ -61,16 +64,16 @@ static ssize_t w1_ds28ea00_therm(struct device *device,
 {
 	struct w1_slave *sl = dev_to_w1_slave(device);
 	struct w1_master *dev = sl->master;
-	u8 rbuf[8];
+	u8 rbuf[9], crc, verdict;
 	u8 wbuf[2] = { 0x44, 0xBE };
 	char p_int, p_dec;
-	int ret;
+	ssize_t ret = PAGE_SIZE;
 
 	mutex_lock(&dev->mutex);
 	if (!w1_reset_select_slave(sl)) {
 
 		w1_write_block(dev, &wbuf[0], 1);	//conversione
-		msleep(1000);						// wait
+		msleep(1000);				// wait
 
 		w1_reset_select_slave(sl);
 		w1_write_block(dev, &wbuf[1], 1);	//read scratchpad
@@ -80,10 +83,16 @@ static ssize_t w1_ds28ea00_therm(struct device *device,
 		p_int = ((rbuf[1] & 0x7) << 4 | ((rbuf[0] >> 4) & 0xF));
 		p_dec = rbuf[0] & 0xF;
 
-	printk(KERN_INFO "ds28ea00: var1= : %X, var2= %X.\n", ((rbuf[1] & 0x7) << 4), ((rbuf[0] >> 4) & 0xF));
 
-		ret = snprintf(out_buf, 30, "t=%X %X  %d.%d\n",
-			rbuf[0], rbuf[1], (int) p_int, p_dec);
+		crc = w1_calc_crc8(rbuf, 8);
+		if (rbuf[8] == crc)
+			verdict = 1;
+		
+		ret -= snprintf(out_buf + PAGE_SIZE - ret, ret, "%02x %02x %02x %02x %02x %02x %02x %02x %02x : crc=%02x %s\n",
+			rbuf[0], rbuf[1], rbuf[2], rbuf[3], rbuf[4], rbuf[5], rbuf[6], rbuf[7], rbuf[8], crc, (verdict) ? "YES" : "NO");
+		
+		ret -= snprintf(out_buf + PAGE_SIZE - ret, ret, "%02x %02x %02x %02x %02x %02x %02x %02x %02x t=%d.%d\n",
+			rbuf[0], rbuf[1], rbuf[2], rbuf[3], rbuf[4], rbuf[5], rbuf[6], rbuf[7], rbuf[8], (int) p_int, p_dec);
 
 	} else {
 		ret = 0;
@@ -108,16 +117,12 @@ static ssize_t w1_ds28ea00_pio_write(struct device *device,
 		wbuf[1] = wbuf[1] ^ in_buf[0];
 	}
 
-	printk(KERN_INFO "ds28ea00: sending : %X.\n", wbuf[1]);
-
 	wbuf[2] = ~wbuf[1];
 
 	mutex_lock(&dev->mutex);
 	if (!w1_reset_select_slave(sl)) {
 		w1_write_block(dev, wbuf, 3);
 		w1_read_block(dev, rbuf, 1);
-
-		printk(KERN_INFO "ds28ea00: reading %X.\n", rbuf[0]);
 	} else {
 		return -1;
 	}
